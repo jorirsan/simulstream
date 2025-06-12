@@ -57,8 +57,6 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
         history. Returns the concatenated audio history and new frames, taking the last
         `self.window_len` frames, and returns it after storing it in the audio history.
         """
-        # as we already have int16, while HF feature extractor assumes floats, we need to divide
-        # by 2**15 the waveform
         new_speech = self.processor(
             waveform,
             sampling_rate=SAMPLE_RATE,
