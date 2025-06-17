@@ -66,10 +66,12 @@ def read_wav_file(filename):
 async def send_audio(websocket, sample_rate, data, chunk_duration_ms=100):
     """Send audio in chunks."""
     samples_per_chunk = int(sample_rate * chunk_duration_ms / 1000.0)
-
+    i = 0
     for i in range(0, len(data), samples_per_chunk):
-        chunk = data[i:i + samples_per_chunk]
-        await websocket.send(chunk.tobytes())
+        await websocket.send(data[i:i + samples_per_chunk].tobytes())
+    # send last part of the audio
+    if i < len(data):
+        await websocket.send(data[i:].tobytes())
 
 
 async def stream_wav_files(uri, wav_file_list, chunk_duration_ms=100, tgt_lang=None):
@@ -87,6 +89,12 @@ async def stream_wav_files(uri, wav_file_list, chunk_duration_ms=100, tgt_lang=N
         async with websockets.connect(uri, ping_timeout=None) as websocket:
             await websocket.send(json.dumps(metadata))
             await send_audio(websocket, sample_rate, data, chunk_duration_ms)
+            await websocket.send(json.dumps({"end_of_stream": True}))
+            while True:
+                response = await websocket.recv()
+                LOGGER.debug(response)
+                if 'end_of_processing' in response:
+                    break
     LOGGER.info(f"All {len(wav_file_list)} files sent.")
 
 

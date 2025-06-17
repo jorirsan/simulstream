@@ -23,10 +23,7 @@ import librosa
 import numpy as np
 import websockets
 from websockets.asyncio.server import serve, ServerConnection
-import wave
 import json
-import os
-import uuid
 
 import simulstream
 from simulstream.config import yaml_config
@@ -49,14 +46,13 @@ def connection_handler_factory(
     """
     Returns a connection handler function that has in scope the given arguments.
     """
-    speech_processor = build_speech_processor(speech_processor_config)
 
     async def process_audio(
-            websocket: ServerConnection,
+            speech_processor: SpeechProcessor,
             client_id: int,
             audio_data: bytes,
             sample_rate: int,
-            processed_audio_seconds: float) -> None:
+            processed_audio_seconds: float) -> str:
         start_time = time.time()
         int16_waveform = np.frombuffer(audio_data, dtype=np.int16)
         float32_waveform = int16_waveform.astype(np.float32) / 2**15
@@ -72,7 +68,7 @@ def connection_handler_factory(
             "generated_tokens": incremental_output.new_tokens,
             "deleted_tokens": incremental_output.deleted_tokens,
         }))
-        await websocket.send(incremental_output.strings_to_json())
+        return incremental_output.strings_to_json()
 
     async def handle_connection(websocket: ServerConnection) -> None:
         """
@@ -85,6 +81,7 @@ def connection_handler_factory(
         processed_audio_seconds = 0
         LOGGER.info(f"Client {client_id} connected")
         sample_rate = SAMPLE_RATE
+        speech_processor = build_speech_processor(speech_processor_config)
 
         try:
             async for message in websocket:
@@ -95,12 +92,13 @@ def connection_handler_factory(
                     buffer_len_seconds = len(client_buffer) / 2 / sample_rate
                     if buffer_len_seconds >= server_config.speech_processing_frequency:
                         processed_audio_seconds += buffer_len_seconds
-                        await process_audio(
-                            websocket,
+                        response = await process_audio(
+                            speech_processor,
                             client_id,
                             client_buffer,
                             sample_rate,
                             processed_audio_seconds)
+                        await websocket.send(response)
                         client_buffer = b''
                 elif isinstance(message, str):
                     # textual message are used to handle metadata
@@ -120,47 +118,29 @@ def connection_handler_factory(
                             LOGGER.debug(
                                 f"Logged client {client_id} metrics metadata: "
                                 f"{data['metrics_metadata']}")
+                        if 'end_of_stream' in data:
+                            if client_buffer:
+                                # process remaining audio after last chunk
+                                processed_audio_seconds += len(client_buffer) / 2 / sample_rate
+                                response = await process_audio(
+                                    speech_processor,
+                                    client_id,
+                                    client_buffer,
+                                    sample_rate,
+                                    processed_audio_seconds)
+                                await websocket.send(response)
+                            client_buffer = b''
+                            speech_processor.clear()
+                            await websocket.send(json.dumps({'end_of_processing': True}))
                     except Exception as e:
                         LOGGER.error(
                             f"Invalid string message: {message}. Error: {e}. Ignoring it.")
-            processed_audio_seconds += len(client_buffer) / 2 / sample_rate
-            if client_buffer:
-                # process remaining audio after last chunk
-                await process_audio(
-                    websocket,
-                    client_id,
-                    client_buffer,
-                    sample_rate,
-                    processed_audio_seconds)
         except websockets.exceptions.ConnectionClosed:
             LOGGER.info(f"Client {client_id} disconnected.")
         except Exception as e:
             LOGGER.exception(f"Error: {e}")
 
     return handle_connection
-
-
-async def save_audio(audio_data):
-    print("processing audio")
-    try:
-        # Save the webm blob to a temp file
-        temp_id = uuid.uuid4().hex
-        webm_path = f"/tmp/suca/{temp_id}.webm"
-        wav_path = f"/tmp/suca/{temp_id}.wav"
-        # audio_size = len(audio_data)
-        with wave.open(wav_path, mode='wb') as wf:
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(SAMPLE_WIDTH)
-            wf.setframerate(SAMPLE_RATE)
-            wf.writeframes(audio_data)
-    except Exception as e:
-        print("Processing error:", e)
-        return None
-    finally:
-        # Clean up temp files
-        for file_path in [webm_path, wav_path]:
-            if False:  # os.path.exists(file_path):
-                os.remove(file_path)
 
 
 async def main(args: argparse.Namespace):
