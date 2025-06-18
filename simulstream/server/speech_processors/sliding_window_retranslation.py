@@ -30,7 +30,8 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
         if not hasattr(cls, "model") or cls.model is None:
             lang_tags = None
             if hasattr(config, "supported_langs") and config.supported_langs is not None:
-                lang_tags = [config.lang_tag_template.format(lang) for lang in config.supported_langs]
+                lang_tags = [
+                    config.lang_tag_template.format(lang) for lang in config.supported_langs]
             cls.processor = AutoProcessor.from_pretrained(
                 config.hf_model_name,
                 additional_special_tokens=lang_tags)
@@ -101,7 +102,8 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
             if deleted_string == '':
                 deleted_tokens = []
             else:
-                deleted_tokens = self.get_ending_tokens_for_string(deleted_string, self.text_history)
+                deleted_tokens = self.get_ending_tokens_for_string(
+                    deleted_string, self.text_history)
         else:
             deleted_tokens = []
             deleted_string = ""

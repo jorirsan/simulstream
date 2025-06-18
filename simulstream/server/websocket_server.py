@@ -29,8 +29,8 @@ import simulstream
 from simulstream.config import yaml_config
 from simulstream.metrics.logger import setup_metrics_logger, METRICS_LOGGER
 from simulstream.server.speech_processors import build_speech_processor
-from simulstream.server.speech_processors import SpeechProcessor, CHANNELS, SAMPLE_WIDTH, \
-    SAMPLE_RATE
+from simulstream.server.speech_processors import SpeechProcessor, SAMPLE_RATE
+
 
 logging.basicConfig(
     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',

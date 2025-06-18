@@ -58,7 +58,7 @@ def read_wav_file(filename):
         if sample_width == 4:
             data = float32_to_int16(data)
 
-        assert num_channels == 1, f"Currently ony 1 channel is supported"
+        assert num_channels == 1, "Currently ony 1 channel is supported"
 
         return sample_rate, data
 
