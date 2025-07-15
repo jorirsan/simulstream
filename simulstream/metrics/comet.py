@@ -22,10 +22,6 @@ from simulstream.config import yaml_config
 from simulstream.metrics.reader import LogReader, ReferenceReader
 from simulstream.metrics.resegmenter import levenshtein_align_hypothesis_to_reference
 
-try:
-    from comet import download_model, load_from_checkpoint
-except ImportError:
-    sys.exit("Please install comet first with `pip install unbabel-comet==2.2.4`.")
 
 logging.basicConfig(
     format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
@@ -42,6 +38,11 @@ def score_st(
     """
     Computes COMET.
     """
+    try:
+        from comet import download_model, load_from_checkpoint
+    except ImportError:
+        sys.exit("Please install comet first with `pip install unbabel-comet==2.2.4`.")
+
     comet_data = []
     for name, ref_lines in ref_dict.items():
         src_lines = transcr_dict[name]

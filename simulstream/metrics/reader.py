@@ -36,7 +36,7 @@ class LogReader:
         for line in self._read_all():
             if 'metadata' in line:
                 audio_id_map[line['id']] = Path(line['metadata']['wav_name']).stem
-            else:
+            elif 'id' in line:
                 assert line['id'] in audio_id_map, \
                     f'{line["id"]} not associated with audio file'
                 audio_name = audio_id_map[line['id']]
@@ -68,7 +68,7 @@ class LogReader:
                     assert line['deleted_tokens'] == tokens[-len(line['deleted_tokens']):]
                     tokens = tokens[:-len(line['deleted_tokens'])]
                 tokens.extend(line['generated_tokens'])
-            outputs[audio] = self.detokenizer(' '.join(tokens))
+            outputs[audio] = self.detokenizer(''.join(tokens))
         return outputs
 
 
