@@ -83,6 +83,7 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
         """
         new_string = self.processor.tokenizer.convert_tokens_to_string(generated_tokens)
         if self.text_history is None or len(self.text_history) == 0:
+            self.text_history = generated_tokens
             return IncrementalOutput(
                 new_tokens=generated_tokens,
                 new_string=new_string,
@@ -104,10 +105,15 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
             else:
                 deleted_tokens = self.get_ending_tokens_for_string(
                     deleted_string, self.text_history)
+            # we take the matching part and the last part of the generated string as part of
+            # the history
+            self.text_history = self.get_ending_tokens_for_string(
+                new_string[longest_match.b:], generated_tokens)
         else:
             deleted_tokens = []
             deleted_string = ""
             new_tokens = generated_tokens
+            self.text_history = generated_tokens
         return IncrementalOutput(
             new_tokens=new_tokens,
             new_string=new_string,
@@ -141,7 +147,7 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
             new_speech: torch.Tensor,
             generated_tokens: List[str],
             new_output: IncrementalOutput) -> None:
-        self.text_history = generated_tokens
+        pass
 
     def clear(self) -> None:
         self.text_history = None
