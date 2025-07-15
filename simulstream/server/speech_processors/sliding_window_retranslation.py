@@ -54,6 +54,9 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
         return self.processor.tokenizer.convert_ids_to_tokens(
             generated_ids, skip_special_tokens=True)
 
+    def _tokens_to_string(self, tokens: List[str]) -> str:
+        return self.processor.tokenizer.convert_tokens_to_string(tokens)
+
     def _preprocess(self, waveform: np.float32) -> torch.Tensor:
         """
         Extracts the filter-bank features from the input waveform and appends them to the audio
@@ -79,40 +82,40 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
         A Sliding Window Approach" <https://arxiv.org/pdf/2210.09754>`_
 
         This algorithm is based on the longest matching substring between the current and previous
-        window.
+        window. We use tokens instead of string to match, though, as we have empirically observed
+        that tokenization is mostly consistent across generations of the same word.
         """
-        new_string = self.processor.tokenizer.convert_tokens_to_string(generated_tokens)
         if self.text_history is None or len(self.text_history) == 0:
             self.text_history = generated_tokens
+            generated_string = self._tokens_to_string(generated_tokens)
             return IncrementalOutput(
                 new_tokens=generated_tokens,
-                new_string=new_string,
+                new_string=generated_string,
                 deleted_tokens=[],
                 deleted_string=""
             )
-        previous_string = self.processor.tokenizer.convert_tokens_to_string(self.text_history)
-        seq_matcher = SequenceMatcher(None, previous_string, new_string)
+        seq_matcher = SequenceMatcher(None, self.text_history, generated_tokens, autojunk=False)
         longest_match = seq_matcher.find_longest_match()
-        if longest_match.size >= self.matching_threshold * len(new_string):
-            new_string = new_string[longest_match.b + longest_match.size:]
-            deleted_string = previous_string[longest_match.a + longest_match.size:]
-            if new_string == '':
-                new_tokens = []
-            else:
-                new_tokens = self.get_ending_tokens_for_string(new_string, generated_tokens)
-            if deleted_string == '':
-                deleted_tokens = []
-            else:
-                deleted_tokens = self.get_ending_tokens_for_string(
-                    deleted_string, self.text_history)
+        if longest_match.size >= self.matching_threshold * len(generated_tokens):
+            new_tokens = generated_tokens[longest_match.b + longest_match.size:]
+            deleted_tokens = self.text_history[longest_match.a + longest_match.size:]
+            new_string = self._tokens_to_string(new_tokens)
+            deleted_string = self._tokens_to_string(deleted_tokens)
             # we take the matching part and the last part of the generated string as part of
-            # the history
-            self.text_history = self.get_ending_tokens_for_string(
-                new_string[longest_match.b:], generated_tokens)
+            # the history. Then we take from the history the tokens corresponding to the amount
+            # generated in this step, to ensure we have a sufficiently wide window
+            matching_and_last_tokens = generated_tokens[longest_match.b:]
+            initial_discarded_tokens = len(generated_tokens) - len(matching_and_last_tokens)
+            history_tokens_discarded = self.text_history[longest_match.a:]
+            history_initial_tokens = len(self.text_history) - len(history_tokens_discarded)
+            new_history_initial_tokens = self.text_history[
+                max(history_initial_tokens - initial_discarded_tokens, 0):history_initial_tokens]
+            self.text_history = new_history_initial_tokens + matching_and_last_tokens
         else:
             deleted_tokens = []
             deleted_string = ""
             new_tokens = generated_tokens
+            new_string = self._tokens_to_string(generated_tokens)
             self.text_history = generated_tokens
         return IncrementalOutput(
             new_tokens=new_tokens,
@@ -120,15 +123,6 @@ class HFSlidingWindowRetranslator(BaseSpeechProcessor):
             deleted_tokens=deleted_tokens,
             deleted_string=deleted_string,
         )
-
-    def get_ending_tokens_for_string(self, string: str, tokens: List[str]) -> List[str]:
-        i = 1
-        while i < len(tokens):
-            ending_tokens_string = self.processor.tokenizer.convert_tokens_to_string(tokens[-i:])
-            if not string.endswith(ending_tokens_string):
-                return tokens[-i + 1:]
-            i += 1
-        return tokens
 
     def set_language(self, language: str) -> None:
         lang_tag_id = self.processor.tokenizer.convert_tokens_to_ids(
