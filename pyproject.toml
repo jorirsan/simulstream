@@ -44,7 +44,8 @@ hf = [
 ]
 
 eval = [
-    "unbabel-comet==2.2.4"
+    "unbabel-comet==2.2.4",
+    "pyyaml"
 ]
 
 [tool.setuptools.dynamic]
