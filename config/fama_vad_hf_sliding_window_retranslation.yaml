@@ -1,0 +1,10 @@
+type: "simulstream.server.speech_processors.vad_sliding_window_retranslation.VADHFSlidingWindowRetranslator"
+hf_model_name: "FBK-MT/fama-small"
+detokenizer_type: "hf"
+window_len: 12
+supported_langs:
+  - en
+  - it
+lang_tag_template: "<lang:{}>"
+matching_threshold: 0.1
+override_on_failed_match: true

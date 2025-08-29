@@ -74,7 +74,8 @@ async def send_audio(websocket, sample_rate, data, chunk_duration_ms=100):
         await websocket.send(data[i:].tobytes())
 
 
-async def stream_wav_files(uri, wav_file_list, chunk_duration_ms=100, tgt_lang=None):
+async def stream_wav_files(
+        uri, wav_file_list, chunk_duration_ms=100, tgt_lang=None, src_lang=None):
     for wav_file in wav_file_list:
         LOGGER.info(f"Streaming: {wav_file}")
         sample_rate, data = read_wav_file(wav_file)
@@ -86,6 +87,8 @@ async def stream_wav_files(uri, wav_file_list, chunk_duration_ms=100, tgt_lang=N
         }
         if tgt_lang is not None:
             metadata["target_lang"] = tgt_lang
+        if src_lang is not None:
+            metadata["source_lang"] = src_lang
         async with websockets.connect(uri, ping_timeout=None) as websocket:
             await websocket.send(json.dumps(metadata))
             await send_audio(websocket, sample_rate, data, chunk_duration_ms)
@@ -110,7 +113,8 @@ async def main(args):
         LOGGER.error("No valid WAV files found in the list.")
     else:
         assert all(os.path.isfile(f) for f in wav_files), "Invalid wav file in the list."
-        await stream_wav_files(args.uri, wav_files, args.chunk_duration_ms, args.tgt_lang)
+        await stream_wav_files(
+            args.uri, wav_files, args.chunk_duration_ms, args.tgt_lang, args.src_lang)
 
 
 def cli_main():
@@ -130,7 +134,12 @@ def cli_main():
         help="Size of the chunks sent to the server in milliseconds (default: 100)")
     parser.add_argument(
         "--tgt-lang",
+        default=None,
         help="Target language for the wav files.")
+    parser.add_argument(
+        "--src-lang",
+        default=None,
+        help="Source language for the wav files.")
     asyncio.run(main(parser.parse_args()))
 
 

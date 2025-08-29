@@ -11,7 +11,7 @@ authors = [
 ]
 keywords = ["simultaneous", "demo", "websocket", "streaming"]
 dependencies = [
-    "pyyaml",
+    "pyyaml>6.0",
     "websockets",
     "torch",
     "librosa"
@@ -43,8 +43,18 @@ hf = [
     "transformers==4.48.1",
 ]
 
+canary = [
+    "Cython",
+    "nemo_toolkit[asr]==2.4.0",
+]
+
+vad = [
+    "silero-vad"
+]
+
 eval = [
-    "unbabel-comet==2.2.4"
+    "unbabel-comet==2.2.6",
+    "mweralign",
 ]
 
 [tool.setuptools.dynamic]

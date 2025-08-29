@@ -39,6 +39,10 @@ class IncrementalOutput:
 
 
 class SpeechProcessor(ABC):
+
+    def __init__(self, config: SimpleNamespace):
+        self.config = config
+
     @classmethod
     @abstractmethod
     def load_model(cls, config: SimpleNamespace):
@@ -49,7 +53,11 @@ class SpeechProcessor(ABC):
         ...
 
     @abstractmethod
-    def set_language(self, language: str) -> None:
+    def set_source_language(self, language: str) -> None:
+        ...
+
+    @abstractmethod
+    def set_target_language(self, language: str) -> None:
         ...
 
     @abstractmethod

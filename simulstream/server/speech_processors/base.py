@@ -24,8 +24,9 @@ from simulstream.server.speech_processors import SpeechProcessor, IncrementalOut
 
 class BaseSpeechProcessor(SpeechProcessor):
     def __init__(self, config: SimpleNamespace):
-        self.config = config
-        self.lang_tag_id = None
+        super().__init__(config)
+        self.tgt_lang_tag = None
+        self.src_lang_tag = None
         self.audio_history = None
         self.text_history = None
 
@@ -64,3 +65,9 @@ class BaseSpeechProcessor(SpeechProcessor):
         self._update_speech_history(speech, generated_tokens, new_output)
         self._update_text_history(speech, generated_tokens, new_output)
         return new_output
+
+    def clear(self) -> None:
+        self.text_history = None
+        self.audio_history = None
+        self.src_lang_tag = None
+        self.tgt_lang_tag = None
