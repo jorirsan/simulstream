@@ -31,10 +31,17 @@
   <div class="container">
     <h1>🎙️ FBK SimulST Demo</h1>
     <canvas id="visualizer"></canvas>
-    <div class="language-selector">
-      <label for="language">Output Language:</label>
-      <select id="language">
-      </select>
+    <div class="language-selectors">
+      <div class="language-selector">
+        <label for="src_language">Input Language:</label>
+        <select id="src_language">
+        </select>
+      </div>
+      <div class="language-selector">
+        <label for="tgt_language">Output Language:</label>
+        <select id="tgt_language">
+        </select>
+      </div>
     </div>
     <div class="controls">
       <button id="startBtn">Start Recording</button>
@@ -89,11 +96,23 @@
     const stopBtn = document.getElementById('stopBtn');
     const statusText = document.getElementById('status');
 
-    configLoader.then(function (config) {
-      if (config.supported_langs) {
-        const langSelect = document.getElementById('language');
-        for (var i = 0; i < config.supported_langs.length; ++i) {
-          Object.entries(config.supported_langs[i]).forEach(([langId, langText]) => {
+    configLoader.then(function (config_yaml) {
+      const config = config_yaml.webui
+      if (config.tgt_supported_langs) {
+        const langSelect = document.getElementById('tgt_language');
+        for (var i = 0; i < config.tgt_supported_langs.length; ++i) {
+          Object.entries(config.tgt_supported_langs[i]).forEach(([langId, langText]) => {
+            const langOpt = document.createElement('option');
+            langOpt.value = langId;
+            langOpt.text = langText;
+            langSelect.append(langOpt);
+          });
+        }
+      }
+      if (config.src_supported_langs) {
+        const langSelect = document.getElementById('src_language');
+        for (var i = 0; i < config.src_supported_langs.length; ++i) {
+          Object.entries(config.src_supported_langs[i]).forEach(([langId, langText]) => {
             const langOpt = document.createElement('option');
             langOpt.value = langId;
             langOpt.text = langText;
@@ -191,8 +210,11 @@
 
         socket.onopen = () => {
           updateStatus("Connected & Recording...", 'green');
-          let lang = document.getElementById("language").value;
-          socket.send(JSON.stringify({ target_lang: lang, sample_rate: inputSampleRate}));
+          let tgt_lang = document.getElementById("tgt_language").value;
+          let src_lang = document.getElementById("src_language").value;
+          socket.send(JSON.stringify({
+            target_lang: tgt_lang, source_lang: src_lang, sample_rate: inputSampleRate
+          }));
         };
 
         socket.onerror = () => {

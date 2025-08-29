@@ -1,13 +1,17 @@
 hostname: localhost
 port: 8080
 secure: false
-model_name: FAMA
-model_logo: FAMA.png
-supported_langs:
-  - en: "🇬🇧 English"
-  - it: "🇮🇹 Italian"
 speech_processing_frequency: 2.0  # seconds
 
 metrics:
   enabled: True
   filename: "metrics.jsonl"
+
+webui:
+  model_name: Canary
+  tgt_supported_langs:
+    - en: "🇬🇧 English"
+    - it: "🇮🇹 Italian"
+  src_supported_langs:
+    - en: "🇬🇧 English"
+    - it: "🇮🇹 Italian"
