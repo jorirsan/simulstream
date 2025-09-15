@@ -31,6 +31,19 @@ LOGGER = logging.getLogger('simulstream.score_quality')
 
 
 def main(scorer_cls: type[QualityScorer], args: argparse.Namespace):
+    """
+    Main entry point for quality scoring.
+
+    This function loads the evaluation configuration, system hypotheses, and reference/transcript
+    data (if required), then constructs scoring samples and computes the final quality score using
+    the selected scorer.
+
+    The output is printed on standard output.
+
+    Args:
+        scorer_cls (type[QualityScorer]): Class implementing the quality metric.
+        args (argparse.Namespace): Parsed command-line arguments.
+    """
     LOGGER.info(f"Loading evaluation configuration from {args.eval_config}")
     eval_config = yaml_config(args.eval_config)
     log_reader = LogReader(eval_config, args.log_file)
@@ -90,6 +103,28 @@ def main(scorer_cls: type[QualityScorer], args: argparse.Namespace):
 
 
 def cli_main():
+    """
+    Quality scoring script for Simulstream evaluation.
+
+    This module provides functionality to compute quality-based evaluation metrics on system
+    outputs stored in JSONL log files. It uses pluggable scorers from the
+    :mod:`simulstream.metrics.scorers.quality` registry and compares system outputs against
+    references and/or transcripts.
+
+    It supports:
+    - **Reference-based metrics** (e.g., BLEU, COMET).
+    - **Source-based metrics** (e.g., reference-free COMET).
+    - Hybrid setups when both references and transcripts are available.
+
+    The script can be invoked as a standalone CLI:
+
+        $ python -m simulstream.metrics.score_quality \\
+            --eval-config config/speech-processor.yaml \\
+            --log-file metrics.jsonl \\
+            --references ref.en \\
+            --transcripts src.it \\
+            --scorer sacrebleu
+    """
     LOGGER.info(f"Simulstream version: {simulstream.__version__}")
     parser = argparse.ArgumentParser("score_quality")
     parser.add_argument(

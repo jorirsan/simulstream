@@ -1,7 +1,7 @@
 # ---- All project specifications ---- #
 [project]
 name = "simuldemo"
-description = "A server to run simultaneous experiments and demo"
+description = "A server to run simultaneous/streaming experiments and demo"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENSE"}
@@ -19,8 +19,8 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-GitHub = "https://github.com/hlt-mt/simuldemo"
-Issues = "https://github.com/hlt-mt/simuldemo/issues"
+GitHub = "https://github.com/hlt-mt/simulstream"
+Issues = "https://github.com/hlt-mt/simulstream/issues"
 
 [project.scripts]
 # Server
@@ -38,6 +38,10 @@ simulstream_stats = "simulstream.metrics.stats:cli_main"
 dev = [
     "pytest==7.4.0",
     "flake8",
+    "sphinx",
+    "sphinx-rtd-theme",
+    "build",
+    "twine",
 ]
 
 hf = [

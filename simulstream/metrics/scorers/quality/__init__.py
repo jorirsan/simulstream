@@ -24,6 +24,21 @@ QUALITY_SCORER_REGISTRY = {}
 
 
 def register_quality_scorer(name):
+    """
+    Decorator for registering a quality scorer class.
+
+    Args:
+        name (str): The unique identifier for the scorer.
+
+    Raises:
+        TypeError: If the decorated class is not a subclass of
+            :class:`QualityScorer`.
+
+    Example:
+        >>> @register_quality_scorer("bleu")
+        ... class BLEUScorer(QualityScorer):
+        ...     ...
+    """
     def register(cls):
         if not issubclass(cls, QualityScorer):
             raise TypeError(f"Cannot register {cls.__name__}: must be a subclass of QualityScorer")
@@ -35,6 +50,17 @@ def register_quality_scorer(name):
 
 @dataclass
 class QualityScoringSample:
+    """
+    Data structure representing a single evaluation sample.
+
+    Attributes:
+        audio_name (str): The identifier of the audio file.
+        hypothesis (str): The system-generated hypothesis text.
+        reference (Optional[List[str]]): One or more reference translations, or ``None`` if not
+            required.
+        source (Optional[List[str]]): The source transcription or text, or ``None`` if not
+            required.
+    """
     audio_name: str
     hypothesis: str
     reference: Optional[List[str]] = None
@@ -42,24 +68,63 @@ class QualityScoringSample:
 
 
 class QualityScorer:
+    """
+    Abstract base class for all quality scorers.
+
+    A quality scorer evaluates system hypotheses against references and/or source sentences
+    and returns a numerical score.
+
+    Subclasses must implement the abstract methods defined here and should be registered via
+    :func:`register_quality_scorer`.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments.
+    """
     def __init__(self, args: argparse.Namespace):
         self.args = args
 
     @abstractmethod
     def score(self, samples: List[QualityScoringSample]) -> float:
+        """
+        Compute a quality score over a list of samples.
+
+        Args:
+           samples (List[QualityScoringSample]): Samples to be evaluated.
+
+        Returns:
+           float: The computed quality score.
+        """
         ...
 
     @classmethod
     @abstractmethod
     def add_arguments(cls, parser: argparse.ArgumentParser) -> None:
+        """
+        Add scorer-specific arguments to the CLI parser.
+
+        Args:
+            parser (argparse.ArgumentParser): The parser to extend.
+        """
         ...
 
     @abstractmethod
     def requires_source(self) -> bool:
+        """
+        Indicate whether this scorer requires the source text.
+
+        Returns:
+            bool: True if source sentences are required, False otherwise.
+        """
         ...
 
     @abstractmethod
     def requires_reference(self) -> bool:
+        """
+        Indicate whether this scorer requires reference translations.
+
+        Returns:
+            bool: True if references are required, False otherwise.
+        """
         ...
 
 

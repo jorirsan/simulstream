@@ -25,6 +25,9 @@ from simulstream.server.speech_processors.sliding_window_retranslation import \
 
 
 class HFSlidingWindowRetranslator(SlidingWindowRetranslator):
+    """
+    Perform Sliding Window Retranslation with a Huggingface speech-to-text model.
+    """
 
     @classmethod
     def load_model(cls, config: SimpleNamespace):

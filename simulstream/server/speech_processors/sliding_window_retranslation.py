@@ -24,6 +24,34 @@ from simulstream.server.speech_processors.base import BaseSpeechProcessor, Incre
 
 
 class SlidingWindowRetranslator(BaseSpeechProcessor):
+    """
+    A speech processor that applies a fixed-length sliding window retranslation with
+    deduplication to mitigate overlapping outputs when processing unsegmented audio streams.
+
+    This class implements the algorithm introduced in:
+
+       S. Sen, et al. 2025. *"Simultaneous Translation for Unsegmented Input:
+       A Sliding Window Approach"* (https://arxiv.org/pdf/2210.09754)
+
+    The approach relies on detecting the **longest common subsequence** between the current window
+    and the previous one, in order to prevent repeating tokens caused by overlapping audio windows.
+
+    Subclasses must implement :meth:`_tokens_to_string` to define how token sequences are converted
+    into human-readable strings.
+
+    Args:
+       config (SimpleNamespace): Configuration object. The following attributes are expected:
+
+           - **window_len (int)**: Length of the sliding window (in seconds).
+           - **matching_threshold (float, optional)**: Minimum fraction of the current tokens that
+             must match the previous history to be considered aligned. Default = ``0.1``.
+           - **override_on_failed_match (bool, optional)**: If ``True``, the previous history is
+             deleted from the output when no sufficient match is found. Otherwise, previous history
+             is kept and the new output is appended to the end of the previous history.
+             Default = ``False``.
+           - **max_tokens_per_second (int, optional)**: Maximum output tokens allowed per second of
+             audio. Default = ``10``.
+    """
 
     def __init__(self, config: SimpleNamespace):
         super().__init__(config)

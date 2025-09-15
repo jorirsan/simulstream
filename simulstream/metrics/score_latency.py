@@ -31,6 +31,18 @@ LOGGER = logging.getLogger('simulstream.score_latency')
 
 
 def main(scorer_cls: type[LatencyScorer], args: argparse.Namespace):
+    """
+    Main entry point for latency scoring.
+
+    Loads system outputs from a log file, builds scoring samples with segment-level references,
+    and computes latency scores using the specified scorer.
+
+    The score (in seconds) is printed on standard output.
+
+    Args:
+        scorer_cls (type[LatencyScorer]): The latency scorer class to use.
+        args (argparse.Namespace): Parsed command-line arguments.
+    """
     LOGGER.info(f"Loading evaluation configuration from {args.eval_config}")
     eval_config = yaml_config(args.eval_config)
     LOGGER.info(f"Reading log file ({args.log_file})")
@@ -64,6 +76,24 @@ def main(scorer_cls: type[LatencyScorer], args: argparse.Namespace):
 
 
 def cli_main():
+    """
+    Latency scoring script for Simulstream evaluation.
+
+    This module provides tools to compute latency metrics for streaming speech translation or
+    recognition. It supports multiple latency scorers through a pluggable registry
+    (:data:`LATENCY_SCORER_REGISTRY`).
+
+    The script works with JSONL log files generated during inference.
+
+    Typical usage from the command line::
+
+        $ python -m simulstream.metrics.score_latency \\
+            --eval-config config/speech-processor.yaml \\
+            --log-file metrics.jsonl \\
+            --audio-definition segments.yaml \\
+            --reference ref.txt \\
+            --scorer stream_laal
+    """
     LOGGER.info(f"Simulstream version: {simulstream.__version__}")
     parser = argparse.ArgumentParser("score_latency")
     parser.add_argument(

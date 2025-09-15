@@ -20,6 +20,10 @@ from simulstream.server.speech_processors.vad_parent import VADParentSpeechProce
 
 
 class VADHFSlidingWindowRetranslator(VADParentSpeechProcessor):
+    """
+    Perform Sliding Window Retranslation after VAD speech filtering with a Huggingface
+    speech-to-text model.
+    """
 
     speech_processor_class = HFSlidingWindowRetranslator
 

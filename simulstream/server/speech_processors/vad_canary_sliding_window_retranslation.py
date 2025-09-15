@@ -20,6 +20,9 @@ from simulstream.server.speech_processors.vad_parent import VADParentSpeechProce
 
 
 class VADCanarySlidingWindowRetranslator(VADParentSpeechProcessor):
+    """
+    Perform Sliding Window Retranslation after VAD speech filtering with Canary.
+    """
 
     speech_processor_class = CanarySlidingWindowRetranslator
 

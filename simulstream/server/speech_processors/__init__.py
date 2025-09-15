@@ -29,47 +29,123 @@ SAMPLE_RATE = 16_000
 
 @dataclass
 class IncrementalOutput:
+    """
+    Represents the incremental output of a speech processor for a single
+    processed chunk of audio.
+
+    Attributes:
+        new_tokens (List[str]): List of newly generated tokens in this chunk.
+        new_string (str): Concatenated string representation of the new tokens.
+        deleted_tokens (List[str]): List of tokens that were deleted/overwritten.
+        deleted_string (str): Concatenated string representation of the deleted tokens.
+    """
     new_tokens: List[str]
     new_string: str
     deleted_tokens: List[str]
     deleted_string: str
 
     def strings_to_json(self) -> str:
+        """
+        Serialize the incremental output to a JSON string.
+
+        Returns:
+            str: A JSON string containing the newly generated and the deleted text.
+        """
         return json.dumps({"new": self.new_string, "deleted": self.deleted_string})
 
 
 class SpeechProcessor(ABC):
+    """
+    Abstract base class for speech processors.
+
+    Subclasses must implement methods to load models, process audio chunks,
+    set source/target languages, and clear internal states.
+    """
 
     def __init__(self, config: SimpleNamespace):
+        """
+        Initialize the speech processor with a given configuration.
+
+        Args:
+            config (SimpleNamespace): Configuration loaded from a YAML file.
+        """
         self.config = config
 
     @classmethod
     @abstractmethod
     def load_model(cls, config: SimpleNamespace):
+        """
+        Load and initialize the underlying speech model.
+
+        Args:
+            config (SimpleNamespace): Configuration of the speech processor.
+        """
         ...
 
     @abstractmethod
     def process_chunk(self, waveform: np.float32) -> IncrementalOutput:
+        """
+        Process a chunk of waveform and produce incremental output.
+
+        Args:
+            waveform (np.float32): A 1D NumPy array of the audio chunk. The array is PCM audio
+                normalized to the range ``[-1.0, 1.0]`` sampled at
+                :attr:`simulstream.server.speech_processors.SAMPLE_RATE`.
+
+        Returns:
+            IncrementalOutput: The incremental output (new and deleted tokens/strings).
+        """
         ...
 
     @abstractmethod
     def set_source_language(self, language: str) -> None:
+        """
+        Set the source language for the speech processor.
+
+        Args:
+            language (str): Language code (e.g., ``"en"``, ``"it"``).
+        """
         ...
 
     @abstractmethod
     def set_target_language(self, language: str) -> None:
+        """
+        Set the target language for the speech processor (for translation).
+
+        Args:
+            language (str): Language code (e.g., ``"en"``, ``"it"``).
+        """
         ...
 
     @abstractmethod
     def clear(self) -> None:
+        """
+        Clear internal states, such as history of cached audio and/or tokens,
+        in preparation for a new stream or conversation.
+        """
         ...
 
 
 def build_speech_processor(speech_processor_config: SimpleNamespace) -> SpeechProcessor:
+    """
+    Instantiate a SpeechProcessor subclass based on configuration.
+
+    The configuration should specify the fully-qualified class name in the
+    ``type`` field (e.g. ``"simulstream.server.speech_processors.MyProcessor"``).
+
+    Args:
+        speech_processor_config (SimpleNamespace): Configuration for the speech processor.
+
+    Returns:
+        SpeechProcessor: An instance of the configured speech processor.
+
+    Raises:
+        AssertionError: If the specified class is not a subclass of SpeechProcessor.
+    """
     module_path, class_name = speech_processor_config.type.rsplit('.', 1)
     module = importlib.import_module(module_path)
     cls = getattr(module, class_name)
     assert issubclass(cls, SpeechProcessor), \
-        f"{speech_processor_config} must be a subclass of BaseSpeechProcessor"
+        f"{speech_processor_config} must be a subclass of SpeechProcessor"
     cls.load_model(speech_processor_config)
     return cls(speech_processor_config)

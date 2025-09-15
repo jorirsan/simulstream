@@ -23,6 +23,15 @@ from simulstream.metrics.scorers.quality import QualityScorer, QualityScoringSam
 
 @dataclass
 class ResegmentedQualityScoringSample:
+    """
+    A sample containing realigned hypotheses and references.
+
+    Attributes:
+        audio_name (str): The identifier of the audio file.
+        hypothesis (List[str]): Hypothesis lines after realignment.
+        reference (List[str]): Reference lines aligned to the hypothesis.
+        source (Optional[List[str]]): Source text (if available).
+    """
     audio_name: str
     hypothesis: List[str]
     reference: List[str]
@@ -30,11 +39,40 @@ class ResegmentedQualityScoringSample:
 
 
 class MWERSegmenterBasedQualityScorer(QualityScorer):
+    """
+    Abstract base class for scorers that require aligned system outputs and references through
+    MWER Segmenter alignment.
+
+    This class wraps a quality scorer and applies the MWER Segmenter alignment by `"Effects of
+    automatic alignment on speech translation metrics"
+    <https://aclanthology.org/2025.iwslt-1.7/>`_ to hypotheses before scoring.
+
+    Subclasses must implement :meth:`_do_score`, which receives
+    :class:`ResegmentedQualityScoringSample` instances, where output and references are aligned.
+
+    Example:
+        >>> class CustomQualityScorer(MWERSegmenterBasedQualityScorer):
+        ...     def _do_score(self, samples):
+        ...         # Compute a custom quality score
+        ...         return ...
+    """
     def requires_reference(self) -> bool:
         return True
 
     @abstractmethod
     def _do_score(self, samples: List[ResegmentedQualityScoringSample]) -> float:
+        """
+        Compute the final score on resegmented samples.
+
+        This method must be implemented by subclasses.
+
+        Args:
+            samples (List[ResegmentedQualityScoringSample]): The aligned
+                hypothesis–reference pairs, plus optional sources.
+
+        Returns:
+            float: The computed score.
+        """
         ...
 
     def score(self, samples: List[QualityScoringSample]) -> float:

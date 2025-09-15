@@ -25,6 +25,9 @@ from simulstream.server.speech_processors.sliding_window_retranslation import \
 
 
 class CanarySlidingWindowRetranslator(SlidingWindowRetranslator):
+    """
+    Perform Sliding Window Retranslation with Canary.
+    """
 
     @classmethod
     def load_model(cls, config: SimpleNamespace):

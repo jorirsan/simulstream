@@ -26,6 +26,21 @@ LATENCY_SCORER_REGISTRY = {}
 
 
 def register_latency_scorer(name):
+    """
+    Decorator for registering a latency scorer class.
+
+    Args:
+        name (str): The unique identifier for the scorer.
+
+    Raises:
+        TypeError: If the decorated class is not a subclass of
+            :class:`LatencyScorer`.
+
+    Example:
+        >>> @register_latency_scorer("stream_laal")
+        ... class StreamLAALScorer(LatencyScorer):
+        ...     ...
+    """
     def register(cls):
         if not issubclass(cls, LatencyScorer):
             raise TypeError(f"Cannot register {cls.__name__}: must be a subclass of LatencyScorer")
@@ -37,6 +52,15 @@ def register_latency_scorer(name):
 
 @dataclass
 class LatencyScoringSample:
+    """
+    Data structure representing a single evaluation sample.
+
+    Attributes:
+        audio_name (str): The identifier of the audio file.
+        hypothesis (str): The system-generated hypothesis text.
+        reference (Optional[List[ReferenceSentenceDefinition]]): One or more reference sentences,
+            including the text, start time and duration, or ``None`` if not required.
+    """
     audio_name: str
     hypothesis: OutputWithDelays
     reference: Optional[List[ReferenceSentenceDefinition]] = None
@@ -44,11 +68,32 @@ class LatencyScoringSample:
 
 @dataclass
 class LatencyScores:
+    """
+    Data structure representing a latency score.
+
+    Attributes:
+        ideal_latency (float): The latency score in ideal conditions, which do not include
+            computational costs.
+        computational_aware_latency (Optional[float]): The latency score in computational aware
+            conditions, which include computational costs.
+    """
     ideal_latency: float
     computational_aware_latency: Optional[float] = None
 
 
 class LatencyScorer:
+    """
+    Abstract base class for all latency scorers.
+
+    A latency scorer evaluates system hypotheses against references and returns a
+    :class:`LatencyScores` object that represents the latency scores.
+
+    Subclasses must implement the abstract methods defined here and should be registered via
+    :func:`register_latency_scorer`.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments.
+    """
     def __init__(self, args: argparse.Namespace):
         self.args = args
 

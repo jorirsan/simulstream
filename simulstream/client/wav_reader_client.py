@@ -17,6 +17,8 @@ import asyncio
 import json
 import logging
 import wave
+from typing import Tuple, Optional, List
+
 import numpy as np
 import websockets
 import os
@@ -31,14 +33,26 @@ logging.basicConfig(
 LOGGER = logging.getLogger('simulstream.wav_reader_client')
 
 
-def float32_to_int16(audio_data):
-    """Convert float32 numpy array to int16."""
+def float32_to_int16(audio_data: np.ndarray) -> np.ndarray:
+    """Convert a NumPy array of float32 audio samples to int16 PCM format."""
     audio_data = np.clip(audio_data * 2 ** 15, -32768, 32767)
     return audio_data.astype(np.int16)
 
 
-def read_wav_file(filename):
-    """Read a wav file and return sample rate and data as int16 numpy array."""
+def read_wav_file(filename: str) -> Tuple[int, np.ndarray]:
+    """
+    Read a WAV file and return its sample rate and audio data.
+
+    Args:
+        filename (str): Path to the WAV file.
+
+    Returns:
+        tuple[int, np.ndarray]: Sample rate and mono audio data as int16 array.
+
+    Raises:
+        ValueError: If the sample width is unsupported.
+        AssertionError: If the file contains more than one channel.
+    """
     with contextlib.closing(wave.open(filename, 'rb')) as wf:
         num_channels = wf.getnchannels()
         sample_width = wf.getsampwidth()
@@ -63,8 +77,20 @@ def read_wav_file(filename):
         return sample_rate, data
 
 
-async def send_audio(websocket, sample_rate, data, chunk_duration_ms=100):
-    """Send audio in chunks."""
+async def send_audio(
+        websocket: websockets.ClientConnection,
+        sample_rate: int,
+        data: np.ndarray,
+        chunk_duration_ms: int = 100):
+    """
+    Stream audio data in fixed-size chunks over a WebSocket connection.
+
+    Args:
+        websocket (websockets.ClientConnection): Active WebSocket connection.
+        sample_rate (int): Audio sample rate (Hz).
+        data (np.ndarray): Audio samples as int16 array.
+        chunk_duration_ms (int): Duration of each chunk in milliseconds.
+    """
     samples_per_chunk = int(sample_rate * chunk_duration_ms / 1000.0)
     i = 0
     for i in range(0, len(data), samples_per_chunk):
@@ -75,7 +101,27 @@ async def send_audio(websocket, sample_rate, data, chunk_duration_ms=100):
 
 
 async def stream_wav_files(
-        uri, wav_file_list, chunk_duration_ms=100, tgt_lang=None, src_lang=None):
+        uri: str,
+        wav_file_list: List[str],
+        chunk_duration_ms: int = 100,
+        tgt_lang: Optional[str] = None,
+        src_lang: Optional[str] = None):
+    """
+    Stream multiple WAV files sequentially to a WebSocket server.
+
+    For each file:
+      - Sends metadata (sample rate, filename, optional languages).
+      - Streams audio in chunks.
+      - Sends an end-of-stream marker.
+      - Waits for server confirmation before proceeding.
+
+    Args:
+        uri (str): WebSocket server URI.
+        wav_file_list (list[str]): Paths to WAV files.
+        chunk_duration_ms (int): Chunk size in milliseconds.
+        tgt_lang (str | None): Target language code (e.g., "en").
+        src_lang (str | None): Source language code (e.g., "en").
+    """
     for wav_file in wav_file_list:
         LOGGER.info(f"Streaming: {wav_file}")
         sample_rate, data = read_wav_file(wav_file)
@@ -101,13 +147,23 @@ async def stream_wav_files(
     LOGGER.info(f"All {len(wav_file_list)} files sent.")
 
 
-def load_wav_file_list(list_file_path):
+def load_wav_file_list(list_file_path: str) -> List[str]:
+    """
+    Load a list of WAV file paths from a text file.
+
+    Args:
+        list_file_path (str): Path to a text file, one WAV file path per line.
+
+    Returns:
+        list[str]: Absolute file paths of WAV files.
+    """
     basedir = os.path.dirname(list_file_path)
     with open(list_file_path, 'r') as f:
         return [basedir + '/' + line.strip() for line in f if line.strip()]
 
 
-async def main(args):
+async def main(args: argparse.Namespace):
+    """Main entrypoint: validates WAV files and starts streaming."""
     wav_files = load_wav_file_list(args.wav_list_file)
     if not wav_files:
         LOGGER.error("No valid WAV files found in the list.")
@@ -118,6 +174,27 @@ async def main(args):
 
 
 def cli_main():
+    """
+    Simulstream WebSocket client command-line interface (CLI) entry point.
+
+    This script implements a simple WebSocket client that streams audio data from a list of WAV
+    files to a server for processing (e.g., speech recognition or translation). It reads WAV files,
+    converts them into fixed-size chunks, and sends them asynchronously over a WebSocket
+    connection.
+
+    Example usage::
+
+        $ python wav_reader_client.py --uri ws://localhost:8000/ --wav-list-file wav_files.txt \\
+              --tgt-lang it --src-lang en
+
+    Command-line arguments:
+
+    - ``--uri``: WebSocket server URI (e.g., ``ws://localhost:8000/``).
+    - ``--wav-list-file``: Path to a text file containing one WAV file path per line.
+    - ``--chunk-duration-ms``: Duration of each audio chunk sent to the server (ms). Default: 100.
+    - ``--tgt-lang``: Optional target language.
+    - ``--src-lang``: Optional source language.
+    """
     parser = argparse.ArgumentParser(description="Websocket client for WAV files.")
     parser.add_argument(
         "--uri",

@@ -44,7 +44,26 @@ def connection_handler_factory(
         server_config: SimpleNamespace,
         speech_processor_config: SimpleNamespace) -> Callable[[ServerConnection], Awaitable[None]]:
     """
-    Returns a connection handler function that has in scope the given arguments.
+    Factory function that creates a connection handler for the WebSocket server.
+
+    The returned connection handler routine will process audio and metadata messages sent by a
+    single client over WebSocket.
+
+    The handler:
+
+    - Receives and buffering raw audio chunks (``bytes``).
+    - Resamples audio to the system's :data:`~simulstream.server.speech_processors.SAMPLE_RATE`.
+    - Processes audio incrementally with the configured
+      :class:`~simulstream.server.speech_processors.SpeechProcessor`.
+    - Handles textual messages for client metadata, language settings, and end-of-stream signals.
+    - Sends back incremental processing results to the client in JSON format.
+
+    :param server_config: Server configuration from the specified YAML file.
+    :type server_config: types.SimpleNamespace
+    :param speech_processor_config: Speech processor configuration form the specified YAML file.
+    :type speech_processor_config: types.SimpleNamespace
+    :return: An asynchronous WebSocket connection handler coroutine.
+    :rtype: Callable[[websockets.asyncio.server.ServerConnection], Awaitable[None]]
     """
 
     async def process_audio(
@@ -53,6 +72,27 @@ def connection_handler_factory(
             audio_data: bytes,
             sample_rate: int,
             processed_audio_seconds: float) -> str:
+        """
+        Process an audio chunk and return incremental transcription/translation.
+
+        This function converts raw ``int16`` PCM audio to normalized ``float32``,
+        resamples it if necessary to :data:`~simulstream.server.speech_processors.SAMPLE_RATE`,
+        and forwards it to the given class:`~simulstream.server.speech_processors.SpeechProcessor`.
+        Processing statistics are logged using the metrics logger.
+
+        :param speech_processor: The speech processor instance to use.
+        :type speech_processor: simulstream.server.speech_processors.SpeechProcessor
+        :param client_id: Unique identifier of the client connection.
+        :type client_id: int
+        :param audio_data: Raw PCM audio bytes (16-bit little endian).
+        :type audio_data: bytes
+        :param sample_rate: Sampling rate of the input audio in Hz.
+        :type sample_rate: int
+        :param processed_audio_seconds: Total number of seconds of audio processed so far.
+        :type processed_audio_seconds: float
+        :return: JSON string with incremental processing results.
+        :rtype: str
+        """
         start_time = time.time()
         int16_waveform = np.frombuffer(audio_data, dtype=np.int16)
         float32_waveform = int16_waveform.astype(np.float32) / 2**15
@@ -72,9 +112,24 @@ def connection_handler_factory(
 
     async def handle_connection(websocket: ServerConnection) -> None:
         """
-        This is the method that process the connection of a client. It iterates over the messages
-        received from the client and orchestrates how they are processed and the messages sent to
-        the client.
+        Handles a single client WebSocket connection.
+
+        This is the coroutine that processes incoming messages from a client:
+
+        - If the message is binary (``bytes``), it is interpreted as raw audio data and
+          buffered until a full chunk is ready for processing.
+        - If the message is text (``str``), it is parsed as JSON metadata and can:
+
+          - Set the input sample rate.
+          - Set source and target languages for translation.
+          - Log custom metadata to the metrics logger.
+          - Indicate the end of the audio stream.
+
+        At the end of the stream, any remaining audio is processed, the processor state is cleared,
+        and an ``end_of_processing`` message is sent to the client.
+
+        :param websocket: The WebSocket connection for the client.
+        :type websocket: websockets.asyncio.server.ServerConnection
         """
         client_id = id(websocket)
         client_buffer = b''
@@ -150,6 +205,16 @@ def connection_handler_factory(
 
 
 async def main(args: argparse.Namespace):
+    """
+    Main entry point for running the WebSocket speech server.
+
+    This function loads the server and speech processor configurations from YAML,
+    initializes logging (including metrics logging), and starts the WebSocket server
+    on the configured host and port.
+
+    :param args: Parsed command-line arguments containing configuration file paths.
+    :type args: argparse.Namespace
+    """
     LOGGER.info(f"Loading server configuration from {args.server_config}")
     server_config = yaml_config(args.server_config)
     LOGGER.info(
@@ -176,6 +241,23 @@ async def main(args: argparse.Namespace):
 
 
 def cli_main():
+    """
+    Simulstream WebSocket server command-line interface (CLI) entry point.
+
+    This function parses command-line arguments and starts the asynchronous :func:`main` routine.
+
+    Example usage::
+
+        $ python websocket_server.py --server-config config/server.yaml \\
+              --speech-processor-config config/speech.yaml
+
+    Command-line arguments:
+
+    - ``--server-config`` (str, optional): Path to the server configuration file
+      (default: ``config/server.yaml``).
+    - ``--speech-processor-config`` (str, required): Path to the speech processor configuration
+      file.
+    """
     LOGGER.info(f"Websocket server version: {simulstream.__version__}")
     parser = argparse.ArgumentParser("websocket_simul_server")
     parser.add_argument("--server-config", type=str, default="config/server.yaml")

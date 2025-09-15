@@ -25,6 +25,21 @@ from simulstream.metrics.detokenizers import get_detokenizer
 
 
 def text_items(text: str, latency_unit: str) -> List[str]:
+    """
+    Split a text string into items depending on the latency unit.
+
+    Args:
+        text (str): The input text string.
+        latency_unit (str): The unit for latency measurement. Must be either:
+            - ``"word"`` → split on whitespace.
+            - ``"char"`` → split into individual characters.
+
+    Returns:
+        List[str]: The list of word or character tokens.
+
+    Raises:
+        ValueError: If `latency_unit` is not ``"word"`` or ``"char"``.
+    """
     if latency_unit == "word":
         words = text.split(" ")
         return [w for w in words if w != '']
@@ -37,24 +52,61 @@ def text_items(text: str, latency_unit: str) -> List[str]:
 
 @dataclass
 class OutputWithDelays:
+    """
+    Representation of a final output sequence and its delays.
+
+    Attributes:
+        final_text (str): The detokenized output text.
+        ideal_delays (List[float]): Latency values relative to processed audio.
+        computational_aware_delays (List[float]): Latency values including computation time.
+    """
     final_text: str
     ideal_delays: List[float]
     computational_aware_delays: List[float]
 
     def text_len(self, latency_unit: str) -> int:
+        """
+        Return the length of the text in the given latency unit.
+
+        Args:
+            latency_unit (str): Either ``"word"`` or ``"char"``.
+
+        Returns:
+            int: Number of items in the text.
+        """
         return len(self.text_items(latency_unit))
 
     def text_items(self, latency_unit: str) -> List[str]:
+        """
+        Return the text split into items (words or characters).
+
+        Args:
+            latency_unit (str): Either ``"word"`` or ``"char"``.
+
+        Returns:
+            List[str]: Tokens in the specified unit.
+        """
         return text_items(self.final_text, latency_unit)
 
     def last_word(self) -> str:
+        """
+        Return the last word of the text.
+
+        Returns:
+            str: The last word token.
+        """
         return self.text_items("word")[-1]
 
 
 @dataclass
 class ReferenceSentenceDefinition:
     """
-    Stores the information about the reference sentences.
+    Stores the information about a reference sentence.
+
+    Attributes:
+        content (str): The sentence text.
+        start_time (float): Start time (in seconds) of the segment.
+        duration (float): Duration (in seconds) of the segment.
     """
     content: str
     start_time: float
@@ -63,7 +115,15 @@ class ReferenceSentenceDefinition:
 
 class LogReader:
     """
-    Helper class to read metric logs.
+    Reads and processes JSONL metric logs written by the websocket server.
+
+    This class rebuilds the final outputs (ignoring retranslated tokens) and provides access to
+    fine-grained information.
+
+    Args:
+        config (SimpleNamespace): Configuration namespace, used for detokenizer setup.
+        filepath (str): Path to the log file (JSONL format).
+        latency_unit (str, optional): Latency measurement unit, ``"word"`` or ``"char"``.
     """
     def __init__(self, config: SimpleNamespace, filepath: str, latency_unit: str = "word"):
         self.filepath = filepath
@@ -72,6 +132,12 @@ class LogReader:
         self.latency_unit = latency_unit
 
     def _get_outputs(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Group outputs by audio file.
+
+        Returns:
+            Dict[str, List[Dict[str, Any]]]: Mapping of audio name → list of log entries.
+        """
         outputs_by_audio = OrderedDict()
         audio_id_map = {}
         for line in self._read_all():
@@ -95,6 +161,12 @@ class LogReader:
         return data
 
     def num_deleted_tokens(self) -> int:
+        """
+        Count the number of deleted tokens across all outputs.
+
+        Returns:
+            int: Total count of deleted tokens.
+        """
         num_deleted_tokens = 0
         for audio, lines in self.outputs_by_audio.items():
             for line in lines:
@@ -107,10 +179,14 @@ class LogReader:
 
     def final_outputs_and_latencies(self) -> Dict[str, OutputWithDelays]:
         """
-        Returns the final outputs for each audio with delays. This means that overridden tokens in
-        retranslation are not included in the output, which is the final string obtained at the end
-        of the audio file. Overridden tokens are also not included in the delays. When a word is
-        partially updated, the last update latency is considered for it.
+        Compute the final outputs and their associated delays.
+
+        Retranslated (overridden) tokens are excluded from the output and from the delays. When a
+        word is partially updated (e.g., only the last subword is updated), the last update latency
+        is considered.
+
+        Returns:
+            Dict[str, OutputWithDelays]: Mapping of audio file → output with delays.
         """
         outputs: OrderedDict[str, OutputWithDelays] = OrderedDict()
         for audio, lines in self.outputs_by_audio.items():
@@ -182,9 +258,13 @@ class LogReader:
 
     def final_outputs(self) -> Dict[str, str]:
         """
-        Returns the final outputs for each audio. This means that overridden tokens in
-        retranslation are not included in the output, which is the final string obtained at the end
-        of the audio file.
+        Returns the final outputs for each audio.
+
+        Overridden tokens in retranslation are not included in the output, which is the final
+        string obtained at the end of the audio file.
+
+        Returns:
+            Dict[str, str]: Mapping of audio file → final text.
         """
         outputs: OrderedDict[str, str] = OrderedDict()
         for audio, outputs_with_latency in self.final_outputs_and_latencies().items():
@@ -193,8 +273,14 @@ class LogReader:
 
 
 class ReferencesReader:
-    def __init__(self, references: List[str]):
-        self.references = self._read_all(references)
+    """
+    Reads plain-text reference files. Each file corresponds to a single audio.
+
+    Args:
+        reference_files (List[str]): Paths to reference files.
+    """
+    def __init__(self, reference_files: List[str]):
+        self.references = self._read_all(reference_files)
 
     @staticmethod
     def _read_all(references: List[str]) -> Dict[str, List[str]]:
@@ -205,10 +291,27 @@ class ReferencesReader:
         return reference_by_file
 
     def get_reference_texts(self) -> Dict[str, List[str]]:
+        """
+        Get the references grouped by file.
+
+        Returns:
+           Dict[str, List[str]]: Mapping of file stem → list of reference sentences.
+        """
         return self.references
 
 
 class YamlReferenceReader:
+    """
+    Reads references aligned with audio definitions.
+
+    The audio definition is a YAML file where each entry describes a segment with its start and
+    duration. The reference file contains one sentence per line, where each lines is associated
+    with the corresponding segment in the audio definition file.
+
+    Args:
+        audio_definition (str): Path to YAML file with segment definitions.
+        reference (str): Path to text file with reference sentences.
+    """
     def __init__(self, audio_definition: str, reference: str):
         self.references = self._read_all(audio_definition, reference)
 
@@ -232,6 +335,12 @@ class YamlReferenceReader:
         return reference_by_file
 
     def get_reference_texts(self) -> Dict[str, List[str]]:
+        """
+        Get the references grouped by file.
+
+        Returns:
+           Dict[str, List[str]]: Mapping of file stem → list of reference sentences.
+        """
         return OrderedDict({
             name: [sentence_def.content for sentence_def in list_sentences]
             for name, list_sentences in self.references.items()})

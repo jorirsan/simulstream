@@ -24,6 +24,27 @@ from simulstream.server.speech_processors.base import IncrementalOutput
 
 
 class VADParentSpeechProcessor(SpeechProcessor):
+    """
+    A parent class for speech processors that integrate **Voice Activity Detection (VAD)**
+    to filter and split continuous audio streams into meaningful speech chunks before processing.
+
+    This class wraps a :class:`SpeechProcessor` implementation (defined by subclasses via the
+    abstract :py:attr:`speech_processor_class`) with a Silero VAD-based iterator that detects the
+    start and end of speech segments. Audio outside of speech is ignored, and each detected segment
+    is passed to the inner speech processor.
+
+    Args:
+        config (SimpleNamespace): Configuration object. The following attributes are used:
+
+            - **vad_threshold (float, optional)**: Probability threshold for VAD. Default = ``0.5``.
+            - **vad_min_silence_duration_ms (int, optional)**: Minimum silence duration
+              (milliseconds) to consider the end of a speech segment. Default = ``100``.
+            - **vad_speech_pad_ms (int, optional)**: Padding (milliseconds) to include before and
+              after detected speech. Default = ``30``.
+            - **min_speech_size (int, optional)**: Minimum segment size in seconds; shorter
+              segments are ignored. Default = ``1``.
+            - Any additional attributes required by the subclass :py:attr:`speech_processor_class`.
+    """
 
     @classmethod
     @property

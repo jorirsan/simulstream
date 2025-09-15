@@ -24,12 +24,37 @@ from simulstream.metrics.scorers.latency import LatencyScorer, LatencyScoringSam
 
 @dataclass
 class ResegmentedLatencyScoringSample:
+    """
+    A sample containing realigned hypotheses and references.
+
+    Attributes:
+        audio_name (str): The identifier of the audio file.
+        hypothesis (List[str]): Hypothesis lines after realignment.
+        reference (List[str]): Reference lines aligned to the hypothesis.
+    """
     audio_name: str
     hypothesis: List[OutputWithDelays]
     reference: List[ReferenceSentenceDefinition]
 
 
 class MWERSegmenterBasedLatencyScorer(LatencyScorer):
+    """
+    Abstract base class for scorers that require aligned system outputs and references through
+    MWER Segmenter alignment.
+
+    This class wraps a latency scorer and applies the MWER Segmenter alignment by `"Effects of
+    automatic alignment on speech translation metrics"
+    <https://aclanthology.org/2025.iwslt-1.7/>`_ to hypotheses before scoring.
+
+    Subclasses must implement :meth:`_do_score`, which operates on
+    :class:`ResegmentedLatencyScoringSample` instances where hypotheses and references are aligned.
+
+    Example:
+        >>> class CustomLatencyScorer(MWERSegmenterBasedLatencyScorer):
+        ...     def _do_score(self, samples):
+        ...         # Compute a custom latency score
+        ...         return LatencyScores(...)
+    """
     def __init__(self, args):
         super().__init__(args)
         self.latency_unit = args.latency_unit
@@ -39,10 +64,32 @@ class MWERSegmenterBasedLatencyScorer(LatencyScorer):
 
     @abstractmethod
     def _do_score(self, samples: List[ResegmentedLatencyScoringSample]) -> LatencyScores:
+        """
+        Compute latency scores on resegmented samples.
+
+        Subclasses must override this method.
+
+        Args:
+            samples (List[ResegmentedLatencyScoringSample]): Aligned
+                hypothesis–reference pairs with delay information.
+
+        Returns:
+            LatencyScores: The computed latency metrics.
+        """
         ...
 
     def _split_delays_by_segmented_text(
             self, delays: List[float], segmented_text: List[str]) -> List[List[float]]:
+        """
+        Assign delay values to the corresponding segmented hypotheses.
+
+        Args:
+            delays (List[float]): Delay values (per token or per char).
+            segmented_text (List[str]): Segmented hypothesis strings.
+
+        Returns:
+            List[List[float]]: Delays split per segment.
+        """
         segmented_delays = []
         index = 0
 
