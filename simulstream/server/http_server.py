@@ -69,8 +69,7 @@ def cli_main():
 
     Command-line arguments:
 
-    - ``--config`` (str, optional): Path to the server configuration file
-      (default: ``config/server.yaml``).
+    - ``--config`` (str, optional): Path to the server configuration file.
 
     .. note::
         The server currently does not support secure connection through HTTPS
@@ -85,7 +84,7 @@ def cli_main():
         help="Specify alternate port [default: 8000]")
     parser.add_argument(
         "--config", "-c", required=True,
-        help="Path to configuration file (JSON)")
+        help="Path to configuration file (YAML)")
     args = parser.parse_args()
 
     custom_handler = partial(CustomHandler, config=args.config, directory=webdemo_dir())
