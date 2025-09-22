@@ -34,7 +34,8 @@ of the speech processor. Refer to the dedicated documentation for more
 details on how to implement a speech processor in :doc:`generated/simulstream.server.speech_processors.base`.
 
 You can also check the examples of speech processors available in the repository as a reference
-for your implementation.
+for your implementation. Notice that each speech processor can have additional dependencies that
+are not installed by default with this codebase (see :doc:`installation`).
 
 Web Client
 __________
@@ -42,12 +43,15 @@ __________
 For a demo, you can create an HTTP web server that servers a web interface interacting with the
 WebSocket server. This can be done by::
 
-    cd webdemo/
-    python -m http.server 8001
+    simulstream_demo_http_server --config config/server.yaml -p 8001
 
 You can of course replace 8001 with any other port number you prefer. The web interface can then be
-accessed at ``http://localhost:8001/``. Be careful not to use the same port specified for the
-WebSocket server.
+accessed from the local laptop at ``http://localhost:8001/`` or from any other terminal connected
+to the same network using the IP address of your workstation instead of ``localhost``. Be careful
+not to use the same port specified for the WebSocket server if they are running on the same
+machine. If running the HTTP server from a machine different from the one where the WebSocket
+server runs, ensure that the HTTP server can connect to the WebSocket server through the address
+specified in the ``config/server.yaml`` file.
 
 
 Python Client
@@ -64,6 +68,11 @@ Tne ``--uri`` should contain the address of the WebSocket client, so it should c
 is specified in the server YAML config. The file specified in ``--wav-list-file`` should be a TXT
 files containing for each line the path to a WAV file.
 
+Before running the command, ensure that the logging of metrics is enabled in the configuration file
+of the WebSocket server (i.e., ``metrics.enabled = True``) and that metrics are logged to an
+empty/non-existing file, to ensure that the resulting file will contain only the logs related to
+the files sent by the client. Then, compute the relevant scores as described below
+(`Evaluation`_).
 
 Evaluation
 __________

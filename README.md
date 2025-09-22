@@ -11,8 +11,10 @@ speech signal, rather than many short speech segments as in simultaneous speech 
 The simultaneous setting can be easily addressed by pre-segmenting the audio into many small
 segments and feed each segment to ``simulstream``.
 
-Check out the [Usage](#Usage) section for instructions on how to use the repository and
-the [Installation](#Installation) section for further information about how to install the project.
+The repository is tested using Python 3.11. Although it may work also with other Python versions,
+wedo not ensure compatibility with them. Check out the [Usage](#Usage) section for instructions on
+how to use the repository and the [Installation](#Installation) section for further information
+about how to install the project.
 
 
 ## Installation
@@ -94,6 +96,8 @@ and [`simulstream.server.speech_processors.base.BaseSpeechProcessor`](simulstrea
 
 As reference, you can check the processors implemented in this repository, available in the
 [`simulstream.server.speech_processors`](simulstream/server/speech_processors) module.
+Notice that each speech processor can have additional dependencies that  are not installed by
+default with this codebase (see [Installation](#installation)).
 
 
 ### Web Client
@@ -102,13 +106,16 @@ For a demo, you can create an HTTP web server that servers a web interface inter
 WebSocket server. This can be done by::
 
 ```shell
-cd webdemo/
-python -m http.server 8001
+simulstream_demo_http_server --config config/server.yaml -p 8001
 ```
 
 You can of course replace 8001 with any other port number you prefer. The web interface can then be
-accessed at ``http://localhost:8001/``. Be careful not to use the same port specified for the
-WebSocket server.
+accessed from the local laptop at ``http://localhost:8001/`` or from any other terminal connected
+to the same network using the IP address of your workstation instead of ``localhost``. Be careful
+not to use the same port specified for the WebSocket server if they are running on the same
+machine. If running the HTTP server from a machine different from the one where the WebSocket
+server runs, ensure that the HTTP server can connect to the WebSocket server through the address
+specified in the ``config/server.yaml`` file.
 
 
 ### Python Client
@@ -126,6 +133,12 @@ simulstream_wavs_client --uri ws://localhost:8080/ \
 Tne ``--uri`` should contain the address of the WebSocket client, so it should correspond to what
 is specified in the server YAML config. The file specified in ``--wav-list-file`` should be a TXT
 files containing for each line the path to a WAV file.
+
+Before running the command, ensure that the logging of metrics is enabled in the configuration file
+of the WebSocket server (i.e., ``metrics.enabled = True``) and that metrics are logged to an
+empty/non-existing file, to ensure that the resulting file will contain only the logs related to
+the files sent by the client. Then, compute the relevant scores as described below
+([Evaluation](#Evaluation)).
 
 
 ### Evaluation

@@ -17,8 +17,10 @@ speech signal, rather than many short speech segments as in simultaneous speech 
 The simultaneous setting can be easily addressed by pre-segmenting the audio into many small
 segments and feed each segment to ``simulstream``.
 
-Check out the :doc:`usage` section for instructions on how to use the repository and
-the :doc:`installation` section for further information about how to install the project.
+The repository is tested using Python 3.11. Although it may work also with other Python versions,
+wedo not ensure compatibility with them. Check out the :doc:`usage` section for instructions on how
+to use the repository and the :doc:`installation` section for further information about how to
+install the project.
 
 - **Github:** `https://github.com/hlt-mt/simulstream.git <https://github.com/hlt-mt/simulstream.git>`__
 - **PyPi:** `https://pypi.org/project/simulstream <https://pypi.org/project/simulstream>`__

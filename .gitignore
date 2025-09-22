@@ -11,3 +11,5 @@ venv
 docs/build
 docs/source/generated
 docs/source/_autosummary
+
+**/.DS_Store
