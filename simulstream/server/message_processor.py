@@ -57,7 +57,17 @@ class MessageProcessor:
         buffer_len_seconds = len(self.client_buffer) / 2 / self.sample_rate
         if buffer_len_seconds >= self.speech_processor.speech_chunk_size:
             self.processed_audio_seconds += buffer_len_seconds
-            return self._run_speech_processor()
+            start_time = time.time()
+            incremental_output = self._run_speech_processor()
+            end_time = time.time()
+            METRICS_LOGGER.info(json.dumps({
+                "id": self.client_id,
+                "total_audio_processed": self.processed_audio_seconds,
+                "computation_time": end_time - start_time,
+                "generated_tokens": incremental_output.new_tokens,
+                "deleted_tokens": incremental_output.deleted_tokens,
+            }))
+            return incremental_output
         else:
             return None
 
@@ -68,21 +78,12 @@ class MessageProcessor:
         and forwards it to the given class:`~simulstream.server.speech_processors.SpeechProcessor`.
         Processing statistics are logged using the metrics logger.
         """
-        start_time = time.time()
         int16_waveform = np.frombuffer(self.client_buffer, dtype=np.int16)
         float32_waveform = int16_waveform.astype(np.float32) / 2 ** 15
         if self.sample_rate != SAMPLE_RATE:
             float32_waveform = librosa.resample(
                 float32_waveform, orig_sr=self.sample_rate, target_sr=SAMPLE_RATE)
         incremental_output = self.speech_processor.process_chunk(float32_waveform)
-        end_time = time.time()
-        METRICS_LOGGER.info(json.dumps({
-            "id": self.client_id,
-            "total_audio_processed": self.processed_audio_seconds,
-            "computation_time": end_time - start_time,
-            "generated_tokens": incremental_output.new_tokens,
-            "deleted_tokens": incremental_output.deleted_tokens,
-        }))
         self.client_buffer = b''
         return incremental_output
 
@@ -122,15 +123,25 @@ class MessageProcessor:
             IncrementalOutput: last output at the end of the stream.
         """
         outputs = []
+        start_time = time.time()
         if self.client_buffer:
             # process remaining audio after last chunk
             self.processed_audio_seconds += len(self.client_buffer) / 2 / self.sample_rate
             outputs.append(self._run_speech_processor())
 
         outputs.append(self.speech_processor.end_of_stream())
-
+        incremental_output = merge_incremental_outputs(
+            outputs, self.speech_processor.tokens_to_string)
+        end_time = time.time()
+        METRICS_LOGGER.info(json.dumps({
+            "id": self.client_id,
+            "total_audio_processed": self.processed_audio_seconds,
+            "computation_time": end_time - start_time,
+            "generated_tokens": incremental_output.new_tokens,
+            "deleted_tokens": incremental_output.deleted_tokens,
+        }))
         self.clear()
-        return merge_incremental_outputs(outputs, self.speech_processor.tokens_to_string)
+        return incremental_output
 
     def clear(self):
         """
