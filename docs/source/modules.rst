@@ -14,10 +14,12 @@ Server
    :template: custom-module-template.rst
 
    simulstream.server.websocket_server
+   simulstream.server.message_processor
    simulstream.server.speech_processors
    simulstream.server.speech_processors.base
+   simulstream.server.speech_processors.incremental_output
    simulstream.server.speech_processors.sliding_window_retranslation
-   simulstream.server.speech_processors.vad_parent
+   simulstream.server.speech_processors.vad_wrapper
 
 
 Client
