@@ -22,7 +22,7 @@ from uts.utils import ASSETS_DIR, CONFIGS_DIR
 class LogReaderTestCase(unittest.TestCase):
     def test_log_reader(self):
         metrics_file = ASSETS_DIR / "test_metrics.jsonl"
-        config_file = CONFIGS_DIR / "fama_hf_sliding_window_retranslation.yaml"
+        config_file = CONFIGS_DIR / "seamless_sliding_window_retranslation.yaml"
         config = yaml_config(config_file)
         log_reader = LogReader(config, metrics_file)
         output_with_latency_by_wav = log_reader.final_outputs_and_latencies()

@@ -24,7 +24,7 @@ def build_hf_detokenizer(config: SimpleNamespace) -> Callable[[List[str]], str]:
     processor = AutoProcessor.from_pretrained(config.hf_model_name)
 
     def detokenize(input_tokens: List[str]) -> str:
-        return processor.tokenizer.convert_tokens_to_string(''.join(input_tokens))
+        return processor.tokenizer.convert_tokens_to_string(input_tokens)
 
     return detokenize
 
