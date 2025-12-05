@@ -20,6 +20,7 @@ Server
    simulstream.server.speech_processors.incremental_output
    simulstream.server.speech_processors.sliding_window_retranslation
    simulstream.server.speech_processors.vad_wrapper
+   simulstream.server.speech_processors.base_streamatt
 
 
 Client
