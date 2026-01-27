@@ -3,7 +3,7 @@
 name = "simulstream"
 description = "A server to run simultaneous/streaming experiments and demo"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 authors = [
     { name = "Marco Gaido", email = "mgaido@fbk.eu" },
@@ -35,6 +35,8 @@ simulstream_inference = "simulstream.inference:cli_main"
 simulstream_score_quality = "simulstream.metrics.score_quality:cli_main"
 simulstream_score_latency = "simulstream.metrics.score_latency:cli_main"
 simulstream_stats = "simulstream.metrics.stats:cli_main"
+
+simulstream_get = "simulstream.get_datasets:cli_main"
 
 [project.optional-dependencies]
 dev = [
@@ -81,3 +83,14 @@ where = [""]
 webdemo = ["webdemo"]
 configs = ["config"]
 
+[tool.uv]
+conflicts = [
+  [
+    { extra = "hf" },
+    { extra = "canary" } #conflicts on transformers and nemo
+  ],
+  [
+    { extra = "canary" },
+    { extra = "eval" } #conflicts on protobuf of nemo and unbabel
+  ],
+]
