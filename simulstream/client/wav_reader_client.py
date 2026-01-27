@@ -18,6 +18,7 @@ import json
 import logging
 import wave
 from typing import Tuple, Optional, List
+from types import SimpleNamespace
 
 import numpy as np
 import websockets
@@ -75,6 +76,7 @@ def read_wav_file(filename: str) -> Tuple[int, np.ndarray]:
         assert num_channels == 1, "Currently ony 1 channel is supported"
 
         return sample_rate, data
+
 
 
 async def send_audio(
@@ -166,6 +168,53 @@ def load_wav_file_list(list_file_path: str) -> List[str]:
     else:
         assert all(os.path.isfile(f) for f in wav_files), "Invalid wav file in the list."
     return wav_files
+
+
+def load_hf_dataset(hf_dataset_args: SimpleNamespace) -> List[str]:
+    """
+    Load a list of WAV file paths from a text file.
+
+    Args:
+        list_file_path (str): Path to a text file, one WAV file path per line.
+
+    Returns:
+        list[str|AudioDecoder]: Absolute file paths of WAV files.
+    """
+    from datasets import load_dataset, load_dataset_builder
+    import datasets
+    import io
+
+    dataset = load_dataset(**vars(hf_dataset_args))
+    basedir = load_dataset_builder(path=hf_dataset_args.path, name=hf_dataset_args.name)
+
+    check = dataset[0]["audio"]
+    if type(check) is datasets.features._torchcodec.AudioDecoder:
+        #TODO salta si es solo 1
+        return [ sample["audio"] for sample in dataset]
+    elif type(check) is str:
+        return [ basedir + '/' + sample["audio"] for sample in dataset]
+    else:
+        raise Exception(f"Unrecognized type in detected Audio column of HuggingFace dataset")
+
+import torch
+from torchcodec.decoders import AudioDecoder
+def read_torchaudio_buffer(buffer: AudioDecoder):
+
+    data = buffer.get_all_samples().data
+    sample_rate = buffer.metadata.sample_rate
+    print(data.dtype)
+    if not (data.dtype == torch.int16 or data.dtype == torch.float32):
+        raise ValueError(f"Unsupported dtype: {data.dtype}")
+    data = data.numpy()
+    if data.dtype == np.float32:
+        print("Tranforming audio to np.float32")
+        data = float32_to_int16(data)
+    assert buffer.metadata.num_channels == 1, "Currently ony 1 channel is supported"
+
+    print(sample_rate)
+    print(data.shape)
+    return sample_rate, np.squeeze(data,0)
+
 
 
 async def main(args: argparse.Namespace):

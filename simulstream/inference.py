@@ -22,7 +22,7 @@ from typing import List, Optional
 import numpy as np
 
 import simulstream
-from simulstream.client.wav_reader_client import load_wav_file_list, read_wav_file
+from simulstream.client.wav_reader_client import load_wav_file_list, load_hf_dataset, read_wav_file, read_torchaudio_buffer
 from simulstream.config import yaml_config
 from simulstream.metrics.logger import setup_metrics_logger, METRICS_LOGGER
 from simulstream.server.message_processor import MessageProcessor
@@ -54,6 +54,8 @@ def process_audio(
     samples_per_chunk = int(
         sample_rate * message_processor.speech_processor.speech_chunk_size)
     i = 0
+    print(samples_per_chunk)
+
     for i in range(0, len(data), samples_per_chunk):
         output = message_processor.process_speech(data[i:i + samples_per_chunk].tobytes())
         LOGGER.debug(f"response: {output}")
@@ -100,6 +102,46 @@ def run_inference(
         message_processor.end_of_stream()
     LOGGER.info(f"All {len(wav_file_list)} files sent.")
 
+def run_inference_hf(
+        speech_processor: SpeechProcessor,
+        hf_samples_list,
+        tgt_lang: Optional[str] = None,
+        src_lang: Optional[str] = None):
+    """
+    Runs the inference on the WAV files sequentially with the specified speech processor.
+
+    For each file:
+      - Sets metadata (sample rate, filename, optional languages).
+      - Processes the audio in chunks.
+
+    Args:
+        speech_processor (SpeechProcessor): the speech processor to use to run the inference.
+        wav_file_list (list[str]): Paths to WAV files.
+        tgt_lang (str | None): Target language code (e.g., "en").
+        src_lang (str | None): Source language code (e.g., "en").
+    """
+    for i, hf_sample in enumerate(hf_samples_list):
+        LOGGER.info(f"Streaming {i} sample")
+        exist_paths = type(hf_sample) is str
+        print(exist_paths)
+        sample_rate, data = read_wav_file(hf_sample) if exist_paths else read_torchaudio_buffer(hf_sample)
+        print(sample_rate, data.shape[-1] / sample_rate, (data.shape[-1] / sample_rate)/60)
+        metadata = {
+            "sample_rate": sample_rate,
+            "metrics_metadata": {
+                "wav_name": i,
+            }
+        }
+        if tgt_lang is not None:
+            metadata["target_lang"] = tgt_lang
+        if src_lang is not None:
+            metadata["source_lang"] = src_lang
+        message_processor = MessageProcessor(i, speech_processor)
+        message_processor.process_metadata(metadata)
+        process_audio(message_processor, sample_rate, data)
+        message_processor.end_of_stream()
+    LOGGER.info(f"All {len(hf_samples_list)} files sent.")
+
 
 def main(args: argparse.Namespace):
     """
@@ -120,8 +162,23 @@ def main(args: argparse.Namespace):
     METRICS_LOGGER.info(json.dumps({
         "model_loading_time": speech_processor_loading_time,
     }))
-    wav_files = load_wav_file_list(args.wav_list_file)
-    run_inference(speech_processor, wav_files, args.tgt_lang, args.src_lang)
+
+    if args.wav_list_file:
+        wav_files = load_wav_file_list(args.wav_list_file)
+        run_inference(speech_processor, wav_files, args.tgt_lang, args.src_lang)
+    elif args.hf_dataset:
+        hf_dataset_config = yaml_config(args.hf_dataset)
+        hf_samples = load_hf_dataset(hf_dataset_config)
+        print(hf_samples)
+        run_inference_hf(speech_processor, hf_samples, args.tgt_lang, args.src_lang)
+        #exist_paths = type(hf_samples[0]) is str
+        #if exist_paths:
+        #    run_inference(speech_processor, hf_samples, args.tgt_lang, args.src_lang)
+        #else:
+        #    run_inference_hf(speech_processor, hf_samples, args.tgt_lang, args.src_lang)
+    else:
+        raise Exception("Missing dataset. Specify --wav-list-file or --hf-dataset")
+
 
 
 def cli_main():
@@ -149,7 +206,6 @@ def cli_main():
     parser.add_argument("--speech-processor-config", type=str, required=True)
     parser.add_argument(
         "--wav-list-file",
-        required=True,
         help="Path to text file containing list of WAV file paths")
     parser.add_argument(
         "--tgt-lang",
@@ -165,6 +221,9 @@ def cli_main():
         "--metrics-log-file",
         default="metrics.json",
         help="Path where to write the metrics log file.")
+    parser.add_argument(
+        "--hf-dataset",
+        help="Path to Hugginface dataset or YAML config file with parameters")
     main(parser.parse_args())
 
 
